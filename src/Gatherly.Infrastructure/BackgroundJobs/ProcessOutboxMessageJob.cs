@@ -4,6 +4,8 @@ using Gatherly.Persistence.Outbox;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
+using Polly;
+using Polly.Retry;
 using Quartz;
 
 namespace Gatherly.Infrastructure.BackgroundJobs;
@@ -28,19 +30,22 @@ public class ProcessOutboxMessageJob : IJob
             .Take(20)
             .ToListAsync(context.CancellationToken);
 
-        foreach (OutboxMessage message in messages)
+        foreach (OutboxMessage outboxMessage in messages)
         {
             IDomainEvent? domainEvent = JsonConvert
-                .DeserializeObject<IDomainEvent>(message.Content);
+                .DeserializeObject<IDomainEvent>(outboxMessage.Content);
 
             if(domainEvent is null)
             {
                 continue;
             }
 
-            await _publisher.Publish(domainEvent, context.CancellationToken);
+            AsyncRetryPolicy policy = Policy.Handle<Exception>().WaitAndRetryAsync(3, attemp => TimeSpan.FromMilliseconds(50*attemp));
 
-            message.ProcessedOnUtc = DateTime.UtcNow;
+            PolicyResult result = await policy.ExecuteAndCaptureAsync(() => _publisher.Publish(domainEvent, context.CancellationToken));
+
+            outboxMessage.Error = result.FinalException?.ToString();
+            outboxMessage.ProcessedOnUtc = DateTime.UtcNow;
         }
 
         await _dbContext.SaveChangesAsync();
