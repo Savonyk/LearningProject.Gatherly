@@ -1,4 +1,5 @@
 using FluentValidation;
+using Gatherly.App.Middlewares;
 using Gatherly.Application.Behaviors;
 using Gatherly.Infrastructure.BackgroundJobs;
 using Gatherly.Persistence;
@@ -21,6 +22,8 @@ builder
             .WithScopedLifetime());
 
 builder.Services.AddMediatR(Gatherly.Application.AssemblyReference.Assembly);
+
+
 
 builder.Services.AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationPipelineBehavior<,>));
 
@@ -57,6 +60,8 @@ builder.Services.AddQuartz(configure =>
 
 builder.Services.AddQuartzHostedService();
 
+builder.Services.AddTransient<GlobalExceptionHandlingMiddleware>();
+
 builder
     .Services
     .AddControllers()
@@ -73,6 +78,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseMiddleware<GlobalExceptionHandlingMiddleware>();
 
 app.UseAuthorization();
 
