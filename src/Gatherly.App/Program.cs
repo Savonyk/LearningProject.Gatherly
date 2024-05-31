@@ -1,14 +1,30 @@
 using FluentValidation;
 using Gatherly.App.Middlewares;
 using Gatherly.Application.Behaviors;
+using Gatherly.Domain.Repositories;
 using Gatherly.Infrastructure.BackgroundJobs;
 using Gatherly.Persistence;
 using Gatherly.Persistence.Interceptors;
+using Gatherly.Persistence.Repository;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Quartz;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<MemberRepository>();
+// first way to set up decorator
+builder.Services.AddScoped<IMemberRepository, CachedMemberRepository>();
+/* second way to set up decorator
+ * builder.Services.AddScoped<IMemberRepository>(provider =>
+{
+    var memberRepository = provider.GetService<MemberRepository>();
+
+    return new CachedMemberRepository(
+        memberRepository,
+        provider.GetService<IMemoryCache>());
+});*/
 
 builder
     .Services
@@ -36,10 +52,7 @@ builder.Services.AddSingleton<ConvertDomainEventsToOutboxInterceptor>();
 builder.Services.AddDbContext<ApplicationDbContext>(
     (sp, optionsBuilder) =>
     {
-        var inteceptor = sp.GetService<ConvertDomainEventsToOutboxInterceptor>();
-
-        optionsBuilder.UseSqlServer(connectionString)
-            .AddInterceptors(inteceptor);
+        optionsBuilder.UseSqlServer(connectionString);
     });
 
 builder.Services.AddQuartz(configure =>

@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Gatherly.Persistence.Repository;
 
-internal sealed class MemberRepository : IMemberRepository
+public sealed class MemberRepository : IMemberRepository
 {
     private readonly ApplicationDbContext _dbContext;
 
@@ -18,4 +18,6 @@ internal sealed class MemberRepository : IMemberRepository
         !await _dbContext.Set<Member>().AnyAsync(x => x.Email == email, cancellationToken);
 
     public void Add(Member member) => _dbContext.Set<Member>().Add(member);
+
+    public void Update(Member member) => _dbContext?.Set<Member>().Update(member);
 }
